@@ -1,12 +1,14 @@
 import json
 import codecs
+import os
 
 
 class PrepareTagData(object):
     def __init__(self):
-        self.trainPath = "/usr/projects/nlp/shortNameNer/data/trainset"
-        self.chineseVocab = "/usr/projects/nlp/shortNameNer/data/vocab_dict.txt"
-        self.dataSet = "/usr/projects/nlp/shortNameNer/data/dataset.txt"
+        prj = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir))
+        self.trainPath = os.path.join(prj, "data/trainset")
+        self.chineseVocab = os.path.join(prj, "data/vocab_dict.txt")
+        self.dataSet = os.path.join(prj, "data/dataset.txt")
         self.vocabDict = self._load_chinese_vocab()
         self.tagId = self._tag_id()
 
