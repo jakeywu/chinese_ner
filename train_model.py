@@ -19,6 +19,6 @@ FLAG = tf.flags.FLAGS
 
 
 if __name__ == "__main__":
-    train_x, train_y = PrepareTagData(FLAG)
+    train_x, train_y = PrepareTagData(FLAG, "train")
     model = RnnCnnCrf(FLAG)
     tf.app.run()

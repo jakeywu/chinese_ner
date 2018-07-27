@@ -1,6 +1,7 @@
 import os
 import copy
 import codecs
+import tensorflow as tf
 
 
 class PrepareTagData(object):
@@ -69,23 +70,24 @@ class PrepareTagData(object):
         except StopIteration as iter_exception:
             if count == 0:
                 raise iter_exception
-        deal_sentence_lst = self.__deal_batch_data(sentence_lst)
-        input_x, input_y = self.__split_batch_data(deal_sentence_lst)
+        deal_x, deal_y = self.__deal_batch_data(sentence_lst)
+        input_x, input_y = self.__padding_batch_data(deal_x, deal_y)
         return input_x, input_y
 
     @staticmethod
-    def __split_batch_data(sentence_lst):
-        inputs_x = []
-        inputs_y = []
-        for sentence in sentence_lst:
-            inputs_x.append([item[0] for item in sentence])
-            inputs_y.append([item[1] for item in sentence])
-        return inputs_x, inputs_y
+    def __padding_batch_data(deal_x, deal_y):
+        max_len = max([len(x) for x in deal_x])
+        deal_x = tf.keras.preprocessing.sequence.pad_sequences(
+            deal_x, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=0)
+        deal_y = tf.keras.preprocessing.sequence.pad_sequences(
+            deal_y, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=0)
+        return deal_x, deal_y
 
     def __deal_batch_data(self, sentence_lst):
-        sentence_ids = []
+        dataset_x = []
+        dataset_y = []
         for sentence in sentence_lst:
-            char_ids = []
+            _x, _y = [], []
             for line in sentence:
                 line = line.split(" ")
                 vocab_id = self.vocabDict.get(line[0], -1)
@@ -94,9 +96,11 @@ class PrepareTagData(object):
                 tag_id = self.tagId.get(line[1], -1)
                 if tag_id == -1:
                     continue
-                char_ids.append([vocab_id, tag_id])
-            sentence_ids.append(char_ids)
-        return sentence_ids
+                _x.append(vocab_id)
+                _y.append(tag_id)
+            dataset_x.append(_x)
+            dataset_y.append(_y)
+        return dataset_x, dataset_y
 
 
 if __name__ == "__main__":
