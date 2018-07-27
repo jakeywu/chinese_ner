@@ -11,25 +11,25 @@ class PrepareTagData(object):
         :param conf:
         :param mode:
         """
+        self.dataPath = os.path.dirname(os.path.dirname(__file__))
         self.config = conf
         self.mode = mode
         self.vocabDict = self.__load_chinese_vocab()
         self.tagId = self._tag_id()
         self._sourceData = self.__read_dataset()
 
-    @staticmethod
-    def __load_chinese_vocab():
+    def __load_chinese_vocab(self):
         cv = dict()
-        with codecs.open(os.path.join(os.path.dirname(os.getcwd()), "data/chinese_vocab.txt"), "r", "utf8") as f:
+        with codecs.open(os.path.join(self.dataPath, "data/chinese_vocab.txt"), "r", "utf8") as f:
             for i, line in enumerate(f.readlines()):
                 cv[line.strip()] = i
         return cv
 
     def __read_dataset(self):
         if self.mode == "train":
-            dataset_path = os.path.join(os.path.dirname(os.getcwd()), "data/trainset.txt")
+            dataset_path = os.path.join(self.dataPath, "data/trainset.txt")
         elif self.mode == "test":
-            dataset_path = os.path.join(os.path.dirname(os.getcwd()), "data/testset.txt")
+            dataset_path = os.path.join(self.dataPath, "data/testset.txt")
         else:
             raise Exception("mode must be in [train/test]")
         if not os.path.exists(dataset_path):
@@ -78,9 +78,9 @@ class PrepareTagData(object):
     def __padding_batch_data(deal_x, deal_y):
         max_len = max([len(x) for x in deal_x])
         deal_x = tf.keras.preprocessing.sequence.pad_sequences(
-            deal_x, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=0)
+            deal_x, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=-1)
         deal_y = tf.keras.preprocessing.sequence.pad_sequences(
-            deal_y, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=0)
+            deal_y, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=-1)
         return deal_x, deal_y
 
     def __deal_batch_data(self, sentence_lst):

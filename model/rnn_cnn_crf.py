@@ -27,13 +27,13 @@ class BaseModel(object):
                 name="W", shape=[filter_height, filter_width, in_channels, out_channel], dtype=tf.float32,
                 initializer=tf.truncated_normal_initializer(stddev=0.01))
             bias = tf.get_variable(name="b", shape=[out_channel], dtype=tf.float32, initializer=tf.constant_initializer())
-            con2d_op = tf.nn.conv2d(input=inputs, filter=filters, strides=[1, 1, 1, 1], padding="SAME")
+            con2d_op = tf.nn.conv2d(input=inputs, filter=filters, strides=[1, 1, 1, 1], padding="VALID")
         return tf.nn.bias_add(value=con2d_op, bias=bias)
 
     @staticmethod
     def _cnn_max_pool(inputs, scope_name, ksize):
         with tf.variable_scope(name_or_scope=scope_name):
-            return tf.nn.max_pool(value=inputs, ksize=[1, ksize, 1, 1], strides=[1, 1, 1, 1], padding="SAME")
+            return tf.nn.max_pool(value=inputs, ksize=[1, ksize, 1, 1], strides=[1, 1, 1, 1], padding="VALID")
 
 
 class RnnCnnCrf(BaseModel):
@@ -55,11 +55,11 @@ class RnnCnnCrf(BaseModel):
     def _init_placeholder(self):
         self.inputs = tf.placeholder(dtype=tf.int32, shape=[None, None], name="inputs")
         self.targets = tf.placeholder(dtype=tf.int32, shape=[None, None], name="targets")
+        self.batch_size = tf.placeholder(dtype=tf.int32, shape=None, name="batch_size")
         self.keep_prob = tf.placeholder(dtype=tf.float32, name="keep_prob")
         self.sequence_len = tf.reduce_sum(
-            tf.cast(tf.not_equal(99999999, self.inputs), tf.int32), axis=0
+            tf.cast(tf.not_equal(tf.cast(-1, self.inputs.dtype), self.inputs), tf.int32), axis=0
         )
-        self.batch_size = tf.shape(self.inputs)[0]
 
     def _embedding_layers(self):
         with tf.variable_scope(name_or_scope="embedding_layer"):
@@ -84,10 +84,6 @@ class RnnCnnCrf(BaseModel):
                 filter_width=self.embedding_size, in_channels=1, out_channel=self.filter_num
             )
             conv1 = tf.nn.relu(conv1)
-            import pdb
-            pdb.set_trace()
             conv1 = self._cnn_max_pool(inputs=conv1, scope_name="max_pool", ksize=self.sequence_len-self.filter_size + 1)
             print("="*10)
-            import pdb
-            pdb.set_trace()
             print(conv1)
