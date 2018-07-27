@@ -4,9 +4,9 @@ import codecs
 
 class PrepareTagData(object):
     def __init__(self):
-        self.trainPath = "/usr/projects/nlp/shortNameNer/prepare_data/trainset"
-        self.chineseVocab = "/usr/projects/nlp/shortNameNer/prepare_data/vocab_dict.txt"
-        self.dataSet = "/usr/projects/nlp/shortNameNer/prepare_data/dataset.txt"
+        self.trainPath = "/usr/projects/nlp/shortNameNer/data/trainset"
+        self.chineseVocab = "/usr/projects/nlp/shortNameNer/data/vocab_dict.txt"
+        self.dataSet = "/usr/projects/nlp/shortNameNer/data/dataset.txt"
         self.vocabDict = self._load_chinese_vocab()
         self.tagId = self._tag_id()
 
