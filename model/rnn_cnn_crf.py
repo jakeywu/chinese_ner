@@ -1,5 +1,8 @@
+import warnings
 import os
+from sklearn import metrics
 import tensorflow as tf
+warnings.filterwarnings('ignore')
 
 
 class BaseModel(object):
@@ -11,7 +14,7 @@ class BaseModel(object):
 
     @staticmethod
     def __template():
-        return """<<Train>>\t EPOCH: [%d] \t STEP: [%d] \t LOSS: [%.4f] \t ACC: [%.4f]"""
+        return """<<Train>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t ACC: [%.3f] \t RECALL: [%.3f] \t F1: [%.3f]"""
 
     @staticmethod
     def __exists_checkpoint():
@@ -48,7 +51,6 @@ class RnnCnnCrf(BaseModel):
         self.vocab_size = conf.vocab_size
         self.num_hidden = conf.num_hidden
         self.num_tag = conf.num_tag
-        self.crf = conf.crf
         self.epoch = conf.epoch
         self.filter_size = conf.filter_size
         self.filter_num = conf.filter_num
@@ -92,23 +94,30 @@ class RnnCnnCrf(BaseModel):
             logit = tf.matmul(bi_output, lstm_w) + lstm_b
             self.logits = tf.reshape(logit, [-1, shape[1], self.num_tag])
 
-    def _build_crf_train_op(self):
+    def _build_train_op(self):
+        # log-likelihood and transition matrix
         log_likelihood, self.transition_params = tf.contrib.crf.crf_log_likelihood(
             inputs=self.logits, tag_indices=self.targets, sequence_lengths=self.sequence_len)
         self.loss = tf.reduce_mean(-log_likelihood)
-
-    def _build_train_op(self):
-        if self.crf:
-            self._build_crf_train_op()
-        else:
-            self.pred_label = tf.cast(tf.argmax(self.logits, axis=-1), tf.int32)
-            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
-            mask = tf.sequence_mask(self.sequence_len)
-            losses = tf.boolean_mask(losses, mask)
-            self.loss = tf.reduce_mean(losses)
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         self.train_op = optimizer.minimize(self.loss)
+
+    @staticmethod
+    def __viterbi_decode_metric(logits, labels, seq_len, transition_params):
+        y_pred = []
+        y_true = []
+        for i in range(len(seq_len)):
+            score = logits[i][0:seq_len[i]]
+            viterbi, _ = tf.contrib.crf.viterbi_decode(score=score, transition_params=transition_params)
+            y_pred.extend(viterbi)
+            y_true.extend(labels[i][0:seq_len[i]])
+
+        accuracy = metrics.precision_score(y_true=y_true, y_pred=y_pred, average="macro")
+        recall = metrics.recall_score(y_true=y_true, y_pred=y_pred, average="macro")
+        f1 = metrics.f1_score(y_true=y_true, y_pred=y_pred, average="macro")
+
+        return accuracy, recall, f1
 
     def train(self, train):
         self.sess.run(tf.global_variables_initializer())
@@ -118,11 +127,13 @@ class RnnCnnCrf(BaseModel):
                 while True:
                     train_x, train_y = next(train)
                     step += (i + 1) * len(train_x)
-                    loss, _ = self.sess.run(
-                        fetches=[self.loss, self.train_op],
+                    loss, seq_len, logits, trans_params, _ = self.sess.run(
+                        fetches=[self.loss, self.sequence_len, self.logits, self.transition_params, self.train_op],
                         feed_dict={self.inputs: train_x, self.targets: train_y, self.keep_prob: 0.5})
-                    print(self.template % (i+1, step, loss, 1.))
-            except StopIteration as stop_iteration:
+                    accuracy, recall, f1 = self.__viterbi_decode_metric(
+                        logits=logits, labels=train_y, seq_len=seq_len, transition_params=trans_params)
+                    print(self.template % (i+1, step, loss, accuracy, recall, f1))
+            except StopIteration as e:
                 continue
 
     def _cnn_layers(self):
