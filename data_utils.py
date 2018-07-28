@@ -20,7 +20,7 @@ class PrepareTagData(object):
 
     def __load_chinese_vocab(self):
         cv = dict()
-        with codecs.open(os.path.join(self.dataPath, "data/chinese_vocab.txt"), "r", "utf8") as f:
+        with codecs.open(os.path.join(self.dataPath, "data/evalset.txt"), "r", "utf8") as f:
             for i, line in enumerate(f.readlines()):
                 cv[line.strip()] = i
         return cv
@@ -30,10 +30,14 @@ class PrepareTagData(object):
             dataset_path = os.path.join(self.dataPath, "data/trainset.txt")
         elif self.mode == "test":
             dataset_path = os.path.join(self.dataPath, "data/testset.txt")
+        elif self.mode == "eval":
+            dataset_path = os.path.join(self.dataPath, "data/evalset.txt")
         else:
             raise Exception("mode must be in [train/test]")
+
         if not os.path.exists(dataset_path):
             raise Exception("path [{}] not exists".format(dataset_path))
+
         with codecs.open(dataset_path, "r", "utf8") as fp:
             while True:
                 a_line = fp.readline()

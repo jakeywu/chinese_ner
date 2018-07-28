@@ -14,7 +14,7 @@ class BaseModel(object):
 
     @staticmethod
     def __template():
-        return """<<Train>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t ACC: [%.3f] \t RECALL: [%.3f] \t F1: [%.3f]"""
+        return """<<%s>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t ACC: [%.3f] \t RECALL: [%.3f] \t F1: [%.3f]"""
 
     @staticmethod
     def __exists_checkpoint():
@@ -22,7 +22,7 @@ class BaseModel(object):
 
     def save(self):
         saver = tf.train.Saver()
-        saver.save(self.sess, "{}short-name".format(BaseModel.checkpointPath))
+        saver.save(self.sess, "{}ner".format(BaseModel.checkpointPath))
 
     def load(self):
         saver = tf.train.Saver()
@@ -55,6 +55,7 @@ class RnnCnnCrf(BaseModel):
         self.filter_size = conf.filter_size
         self.filter_num = conf.filter_num
         self.learning_rate = conf.learning_rate
+        self.saved_model = conf.saved_model
 
         self._init_placeholder()
         self._embedding_layers()
@@ -103,6 +104,11 @@ class RnnCnnCrf(BaseModel):
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         self.train_op = optimizer.minimize(self.loss)
 
+    def _tf_crf_decode(self):
+        self.decode_tags, self.best_score = tf.contrib.crf.crf_decode(
+            potentials=self.logits, transition_params=self.transition_params, sequence_length=self.sequence_len
+        )
+
     @staticmethod
     def __viterbi_decode_metric(logits, labels, seq_len, transition_params):
         y_pred = []
@@ -119,22 +125,40 @@ class RnnCnnCrf(BaseModel):
 
         return accuracy, recall, f1
 
-    def train(self, train):
-        self.sess.run(tf.global_variables_initializer())
+    def __get_feed_data(self, mode):
+        if mode == "train":
+            return [self.loss, self.sequence_len, self.logits, self.transition_params, self.train_op]
+        elif mode == "test":
+            return [self.loss, self.sequence_len, self.logits, self.transition_params]
+        else:
+            raise Exception("mode {} is invalid".format(mode))
+
+    def run_epoch(self, dataset, mode, keep_prob, epoch_num):
+        feed_data = self.__get_feed_data(mode=mode)
         step = 0
+        try:
+            while True:
+                input_x, input_y = next(dataset)
+                step += (epoch_num + 1) * len(input_x)
+                sess_params = self.sess.run(
+                    fetches=feed_data,
+                    feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: keep_prob})
+                accuracy, recall, f1 = self.__viterbi_decode_metric(
+                    logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
+                print(self.template % (mode, epoch_num + 1, step, sess_params[0], accuracy, recall, f1))
+        except StopIteration as e:
+            pass
+
+    def train(self, trainset):
+        self.sess.run(tf.global_variables_initializer())
+        print("\nbegin train.....\n")
         for i in range(self.epoch):
-            try:
-                while True:
-                    train_x, train_y = next(train)
-                    step += (i + 1) * len(train_x)
-                    loss, seq_len, logits, trans_params, _ = self.sess.run(
-                        fetches=[self.loss, self.sequence_len, self.logits, self.transition_params, self.train_op],
-                        feed_dict={self.inputs: train_x, self.targets: train_y, self.keep_prob: 0.5})
-                    accuracy, recall, f1 = self.__viterbi_decode_metric(
-                        logits=logits, labels=train_y, seq_len=seq_len, transition_params=trans_params)
-                    print(self.template % (i+1, step, loss, accuracy, recall, f1))
-            except StopIteration as e:
-                continue
+            self.run_epoch(dataset=trainset, mode="train", keep_prob=0.5, epoch_num=i)
+        self.__saved_model()
+
+    def test(self, testset):
+        print("\n begin test.....\n")
+        self.run_epoch(dataset=testset, mode="test", keep_prob=1., epoch_num=0)
 
     def _cnn_layers(self):
         with tf.variable_scope(name_or_scope="cnn_layers"):
@@ -146,3 +170,21 @@ class RnnCnnCrf(BaseModel):
             )
             conv1 = tf.nn.relu(conv1)
             conv1 = self._cnn_max_pool(inputs=conv1, scope_name="max_pool", ksize=self.sequence_len-self.filter_size + 1)
+
+    def __saved_model(self):
+        builder = tf.saved_model.builder.SavedModelBuilder(self.saved_model)
+        inputs = {
+            "inputs": tf.saved_model.utils.build_tensor_info(self.inputs),
+            "keep_prob": tf.saved_model.utils.build_tensor_info(self.keep_prob)
+        }
+        outputs = {
+            "decode_tags": tf.saved_model.utils.build_tensor_info(self.decode_tags),
+            "best_score": tf.saved_model.utils.build_tensor_info(self.best_score)
+        }
+        signature = tf.saved_model.signature_def_utils.build_signature_def(
+            inputs=inputs,
+            outputs=outputs,
+            method_name="ner_name"
+        )
+        builder.add_meta_graph_and_variables(self.sess, [tf.saved_model.tag_constants.SERVING], {"ner_name": signature})
+        builder.save()

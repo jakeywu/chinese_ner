@@ -1,6 +1,6 @@
 import tensorflow as tf
-from model.data_utils import PrepareTagData
-from model.rnn_cnn_crf import RnnCnnCrf
+from data_utils import PrepareTagData
+from rnn_cnn_crf import RnnCnnCrf
 
 tf.flags.DEFINE_integer(name="num_tag", default=4, help="number tags")
 tf.flags.DEFINE_integer(name="epoch", default=10, help="maximum epochs")
@@ -17,13 +17,17 @@ tf.flags.DEFINE_float(name="train_ratio", default=0.7, help="only include train/
 tf.flags.DEFINE_string(name="dataset_flag", default="end", help="split dataset sentence by end")
 tf.flags.DEFINE_string(name="tag_char", default="O,B-S-ORG,I-S-ORG,E-S-ORG", help="used in dataset, split by ,")
 
+tf.flags.DEFINE_string(name="saved_model", default="model", help="saved train model path, default ./model")
+
 FLAG = tf.flags.FLAGS
 
 
 def main(_):
-    ptd_train = PrepareTagData(FLAG, "train")
+    trainset = PrepareTagData(FLAG, "train")
+    testset = PrepareTagData(FLAG, "test")
     model = RnnCnnCrf(FLAG)
-    model.train(ptd_train)
+    model.train(trainset)
+    model.test(testset)
 
 
 if __name__ == "__main__":
