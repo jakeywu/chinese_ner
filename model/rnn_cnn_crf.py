@@ -7,6 +7,11 @@ class BaseModel(object):
 
     def __init__(self):
         self.sess = tf.Session()
+        self.template = self.__template()
+
+    @staticmethod
+    def __template():
+        return """<<Train>>\t EPOCH: [%d] \t STEP: [%d] \t LOSS: [%.4f] \t ACC: [%.4f]"""
 
     @staticmethod
     def __exists_checkpoint():
@@ -59,7 +64,7 @@ class RnnCnnCrf(BaseModel):
         self.targets = tf.placeholder(dtype=tf.int32, shape=[None, None], name="targets")
         self.keep_prob = tf.placeholder(dtype=tf.float32, name="keep_prob")
         self.sequence_len = tf.reduce_sum(
-            tf.cast(tf.not_equal(tf.cast(-1, self.inputs.dtype), self.inputs), tf.int32), axis=0
+            tf.cast(tf.not_equal(tf.cast(-1, self.inputs.dtype), self.inputs), tf.int32), axis=1
         )
 
     def _embedding_layers(self):
@@ -70,14 +75,14 @@ class RnnCnnCrf(BaseModel):
 
     def _bi_lstm_layers(self):
         with tf.variable_scope(name_or_scope="biLSTM_layers"):
-            shape = tf.shape(self.embedded_inputs)
             cell_fw = tf.nn.rnn_cell.LSTMCell(num_units=self.num_hidden)
             cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=self.num_hidden)
             (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(
                 cell_fw, cell_bw, inputs=self.embedded_inputs, sequence_length=self.sequence_len,
                 time_major=False, dtype=tf.float32)
-            ouputs = tf.nn.dropout(tf.concat([output_fw, output_bw], axis=2), keep_prob=self.keep_prob)
-            bi_output = tf.reshape(ouputs, [-1, 2 * self.num_hidden])
+            outputs = tf.nn.dropout(tf.concat([output_fw, output_bw], axis=2), keep_prob=self.keep_prob)
+            shape = tf.shape(outputs)
+            bi_output = tf.reshape(outputs, [-1, 2 * self.num_hidden])
             lstm_w = tf.get_variable(
                 name="W_out", shape=[2 * self.num_hidden, self.num_tag], dtype=tf.float32,
                 initializer=tf.truncated_normal_initializer(stddev=0.01)
@@ -85,15 +90,11 @@ class RnnCnnCrf(BaseModel):
             lstm_b = tf.get_variable(name="b", shape=[self.num_tag], dtype=tf.float32,
                                      initializer=tf.truncated_normal_initializer(stddev=0.01))
             logit = tf.matmul(bi_output, lstm_w) + lstm_b
-            self.logits = tf.reshape(logit, [shape[0], shape[1], self.num_tag])
+            self.logits = tf.reshape(logit, [-1, shape[1], self.num_tag])
 
     def _build_crf_train_op(self):
-        import pdb
-        pdb.set_trace()
-        log_likelihood, transition_params = tf.contrib.crf.crf_log_likelihood(
+        log_likelihood, self.transition_params = tf.contrib.crf.crf_log_likelihood(
             inputs=self.logits, tag_indices=self.targets, sequence_lengths=self.sequence_len)
-        import pdb
-        pdb.set_trace()
         self.loss = tf.reduce_mean(-log_likelihood)
 
     def _build_train_op(self):
@@ -105,19 +106,24 @@ class RnnCnnCrf(BaseModel):
             mask = tf.sequence_mask(self.sequence_len)
             losses = tf.boolean_mask(losses, mask)
             self.loss = tf.reduce_mean(losses)
+        self.global_step = tf.Variable(0, name="global_step", trainable=False)
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         self.train_op = optimizer.minimize(self.loss)
 
     def train(self, train):
-        for _ in range(self.epoch):
+        self.sess.run(tf.global_variables_initializer())
+        step = 0
+        for i in range(self.epoch):
             try:
                 while True:
                     train_x, train_y = next(train)
-                    self.sess.run(
+                    step += (i + 1) * len(train_x)
+                    loss, _ = self.sess.run(
                         fetches=[self.loss, self.train_op],
                         feed_dict={self.inputs: train_x, self.targets: train_y, self.keep_prob: 0.5})
+                    print(self.template % (i+1, step, loss, 1.))
             except StopIteration as stop_iteration:
-                raise stop_iteration
+                continue
 
     def _cnn_layers(self):
         with tf.variable_scope(name_or_scope="cnn_layers"):

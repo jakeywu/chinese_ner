@@ -78,9 +78,9 @@ class PrepareTagData(object):
     def __padding_batch_data(deal_x, deal_y):
         max_len = max([len(x) for x in deal_x])
         deal_x = tf.keras.preprocessing.sequence.pad_sequences(
-            deal_x, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=-1)
+            deal_x, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=0)
         deal_y = tf.keras.preprocessing.sequence.pad_sequences(
-            deal_y, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=-1)
+            deal_y, maxlen=max_len, padding="post", truncating="post", dtype="int32", value=0)
         return deal_x, deal_y
 
     def __deal_batch_data(self, sentence_lst):
