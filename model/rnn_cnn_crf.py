@@ -88,8 +88,12 @@ class RnnCnnCrf(BaseModel):
             self.logits = tf.reshape(logit, [shape[0], shape[1], self.num_tag])
 
     def _build_crf_train_op(self):
+        import pdb
+        pdb.set_trace()
         log_likelihood, transition_params = tf.contrib.crf.crf_log_likelihood(
             inputs=self.logits, tag_indices=self.targets, sequence_lengths=self.sequence_len)
+        import pdb
+        pdb.set_trace()
         self.loss = tf.reduce_mean(-log_likelihood)
 
     def _build_train_op(self):
@@ -110,7 +114,7 @@ class RnnCnnCrf(BaseModel):
                 while True:
                     train_x, train_y = next(train)
                     self.sess.run(
-                        fetches={self.loss, self.train_op},
+                        fetches=[self.loss, self.train_op],
                         feed_dict={self.inputs: train_x, self.targets: train_y, self.keep_prob: 0.5})
             except StopIteration as stop_iteration:
                 raise stop_iteration
