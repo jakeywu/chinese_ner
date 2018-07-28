@@ -8,6 +8,9 @@ tf.flags.DEFINE_integer(name="batch_size", default=10, help="batch size")
 tf.flags.DEFINE_integer(name="vocab_size", default=5000, help="vocab num")
 tf.flags.DEFINE_integer(name="num_hidden", default=128, help="lstm num hidden")
 tf.flags.DEFINE_integer(name="embedding_size", default=128, help="embedding size")
+tf.flags.DEFINE_bool(name="crf", default=True, help="use crf or not")
+tf.flags.DEFINE_float(name="learning_rate", default=0.01, help="init learning rate")
+
 tf.flags.DEFINE_integer(name="filter_size", default=3, help="cnn filter size")
 tf.flags.DEFINE_integer(name="filter_num", default=128, help="cnn filter num")
 
@@ -18,7 +21,11 @@ tf.flags.DEFINE_string(name="tag_char", default="O,B-S-ORG,I-S-ORG,E-S-ORG", hel
 FLAG = tf.flags.FLAGS
 
 
-if __name__ == "__main__":
-    ptd = PrepareTagData(FLAG, "train")
+def main(_):
+    ptd_train = PrepareTagData(FLAG, "train")
     model = RnnCnnCrf(FLAG)
-    tf.app.run()
+    model.train(ptd_train)
+
+
+if __name__ == "__main__":
+    tf.app.run(main)

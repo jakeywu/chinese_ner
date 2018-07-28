@@ -39,23 +39,24 @@ class BaseModel(object):
 class RnnCnnCrf(BaseModel):
     def __init__(self, conf):
         super(RnnCnnCrf, self).__init__()
-        self.epoch = conf.epoch
         self.embedding_size = conf.embedding_size
         self.vocab_size = conf.vocab_size
         self.num_hidden = conf.num_hidden
         self.num_tag = conf.num_tag
+        self.crf = conf.crf
+        self.epoch = conf.epoch
         self.filter_size = conf.filter_size
         self.filter_num = conf.filter_num
+        self.learning_rate = conf.learning_rate
 
         self._init_placeholder()
         self._embedding_layers()
         self._bi_lstm_layers()
-        self._cnn_layers()
+        self._build_train_op()
 
     def _init_placeholder(self):
         self.inputs = tf.placeholder(dtype=tf.int32, shape=[None, None], name="inputs")
         self.targets = tf.placeholder(dtype=tf.int32, shape=[None, None], name="targets")
-        self.batch_size = tf.placeholder(dtype=tf.int32, shape=None, name="batch_size")
         self.keep_prob = tf.placeholder(dtype=tf.float32, name="keep_prob")
         self.sequence_len = tf.reduce_sum(
             tf.cast(tf.not_equal(tf.cast(-1, self.inputs.dtype), self.inputs), tf.int32), axis=0
@@ -69,21 +70,58 @@ class RnnCnnCrf(BaseModel):
 
     def _bi_lstm_layers(self):
         with tf.variable_scope(name_or_scope="biLSTM_layers"):
+            shape = tf.shape(self.embedded_inputs)
             cell_fw = tf.nn.rnn_cell.LSTMCell(num_units=self.num_hidden)
             cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=self.num_hidden)
             (output_fw, output_bw), _ = tf.nn.bidirectional_dynamic_rnn(
                 cell_fw, cell_bw, inputs=self.embedded_inputs, sequence_length=self.sequence_len,
                 time_major=False, dtype=tf.float32)
-            self.lstm_ouputs = tf.nn.dropout(tf.concat([output_fw, output_bw], axis=2), keep_prob=self.keep_prob)
+            ouputs = tf.nn.dropout(tf.concat([output_fw, output_bw], axis=2), keep_prob=self.keep_prob)
+            bi_output = tf.reshape(ouputs, [-1, 2 * self.num_hidden])
+            lstm_w = tf.get_variable(
+                name="W_out", shape=[2 * self.num_hidden, self.num_tag], dtype=tf.float32,
+                initializer=tf.truncated_normal_initializer(stddev=0.01)
+            )
+            lstm_b = tf.get_variable(name="b", shape=[self.num_tag], dtype=tf.float32,
+                                     initializer=tf.truncated_normal_initializer(stddev=0.01))
+            logit = tf.matmul(bi_output, lstm_w) + lstm_b
+            self.logits = tf.reshape(logit, [shape[0], shape[1], self.num_tag])
+
+    def _build_crf_train_op(self):
+        log_likelihood, transition_params = tf.contrib.crf.crf_log_likelihood(
+            inputs=self.logits, tag_indices=self.targets, sequence_lengths=self.sequence_len)
+        self.loss = tf.reduce_mean(-log_likelihood)
+
+    def _build_train_op(self):
+        if self.crf:
+            self._build_crf_train_op()
+        else:
+            self.pred_label = tf.cast(tf.argmax(self.logits, axis=-1), tf.int32)
+            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
+            mask = tf.sequence_mask(self.sequence_len)
+            losses = tf.boolean_mask(losses, mask)
+            self.loss = tf.reduce_mean(losses)
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        self.train_op = optimizer.minimize(self.loss)
+
+    def train(self, train):
+        for _ in range(self.epoch):
+            try:
+                while True:
+                    train_x, train_y = next(train)
+                    self.sess.run(
+                        fetches={self.loss, self.train_op},
+                        feed_dict={self.inputs: train_x, self.targets: train_y, self.keep_prob: 0.5})
+            except StopIteration as stop_iteration:
+                raise stop_iteration
 
     def _cnn_layers(self):
         with tf.variable_scope(name_or_scope="cnn_layers"):
             self.embedded_inputs_expanded = tf.expand_dims(self.embedded_inputs, -1)
+
             conv1 = self._cnn_2d(
                 inputs=self.embedded_inputs_expanded, scope_name="conv", filter_height=self.filter_size,
                 filter_width=self.embedding_size, in_channels=1, out_channel=self.filter_num
             )
             conv1 = tf.nn.relu(conv1)
             conv1 = self._cnn_max_pool(inputs=conv1, scope_name="max_pool", ksize=self.sequence_len-self.filter_size + 1)
-            print("="*10)
-            print(conv1)
