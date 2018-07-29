@@ -106,7 +106,7 @@ class RnnCnnCrf(BaseModel):
         self.train_op = optimizer.minimize(self.loss)
 
     def _tf_crf_decode(self):
-        self.decode_tags, self.best_score = tf.contrib.crf.crf_decode(
+        self.decode_tags, _ = tf.contrib.crf.crf_decode(
             potentials=self.logits, transition_params=self.transition_params, sequence_length=self.sequence_len
         )
 
@@ -175,12 +175,11 @@ class RnnCnnCrf(BaseModel):
     def __saved_model(self):
         builder = tf.saved_model.builder.SavedModelBuilder(self.saved_model)
         inputs = {
-            "inputs": tf.saved_model.utils.build_tensor_info(self.inputs),
+            "inputs_x": tf.saved_model.utils.build_tensor_info(self.inputs),
             "keep_prob": tf.saved_model.utils.build_tensor_info(self.keep_prob)
         }
         outputs = {
             "decode_tags": tf.saved_model.utils.build_tensor_info(self.decode_tags),
-            "best_score": tf.saved_model.utils.build_tensor_info(self.best_score)
         }
         signature = tf.saved_model.signature_def_utils.build_signature_def(
             inputs=inputs,
