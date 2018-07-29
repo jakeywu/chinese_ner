@@ -1,2 +1,2 @@
-# 中文实体抽取
-# LSTM + CNN + CRF
+# 中文实体抽取 
+# LSTM + CRF
