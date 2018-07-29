@@ -137,18 +137,19 @@ class RnnCnnCrf(BaseModel):
     def run_epoch(self, dataset, mode, keep_prob, epoch_num):
         feed_data = self.__get_feed_data(mode=mode)
         step = 0
-        try:
-            while True:
-                input_x, input_y = next(dataset)
-                step += (epoch_num + 1) * len(input_x)
-                sess_params = self.sess.run(
-                    fetches=feed_data,
-                    feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: keep_prob})
-                accuracy, recall, f1 = self.__viterbi_decode_metric(
-                    logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
-                print(self.template % (mode, epoch_num + 1, step, sess_params[0], accuracy, recall, f1))
-        except StopIteration as e:
-            pass
+        # try:
+        for input_x, input_y in dataset:
+            # input_x, input_y = next(dataset)
+            step += (epoch_num + 1) * len(input_x)
+            sess_params = self.sess.run(
+                fetches=feed_data,
+                feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: keep_prob})
+            accuracy, recall, f1 = self.__viterbi_decode_metric(
+                logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
+            print(self.template % (mode, epoch_num + 1, step, sess_params[0], accuracy, recall, f1))
+
+        # except StopIteration as e:
+        #     pass
 
     def train(self, trainset):
         self.sess.run(tf.global_variables_initializer())

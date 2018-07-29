@@ -78,6 +78,9 @@ class PrepareTagData(object):
         input_x, input_y = self.__padding_batch_data(deal_x, deal_y)
         return input_x, input_y
 
+    def __iter__(self):
+        return self
+
     @staticmethod
     def __padding_batch_data(deal_x, deal_y):
         max_len = max([len(x) for x in deal_x])
