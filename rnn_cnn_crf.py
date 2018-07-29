@@ -61,11 +61,12 @@ class RnnCnnCrf(BaseModel):
         self._embedding_layers()
         self._bi_lstm_layers()
         self._build_train_op()
+        self._tf_crf_decode()
 
     def _init_placeholder(self):
         self.inputs = tf.placeholder(dtype=tf.int32, shape=[None, None], name="inputs")
         self.targets = tf.placeholder(dtype=tf.int32, shape=[None, None], name="targets")
-        self.keep_prob = tf.placeholder(dtype=tf.float32, name="keep_prob")
+        self.keep_prob = tf.placeholder(dtype=tf.float32, shape=None, name="keep_prob")
         self.sequence_len = tf.reduce_sum(
             tf.cast(tf.not_equal(tf.cast(-1, self.inputs.dtype), self.inputs), tf.int32), axis=1
         )

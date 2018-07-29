@@ -11,7 +11,7 @@ class PrepareTagData(object):
         :param conf:
         :param mode:
         """
-        self.dataPath = os.path.dirname(os.path.dirname(__file__))
+        self.dataPath = os.path.dirname(__file__)
         self.config = conf
         self.mode = mode
         self.vocabDict = self.__load_chinese_vocab()
@@ -20,7 +20,7 @@ class PrepareTagData(object):
 
     def __load_chinese_vocab(self):
         cv = dict()
-        with codecs.open(os.path.join(self.dataPath, "data/evalset.txt"), "r", "utf8") as f:
+        with codecs.open(os.path.join(self.dataPath, "data/chinese_vocab.txt"), "r", "utf8") as f:
             for i, line in enumerate(f.readlines()):
                 cv[line.strip()] = i
         return cv
