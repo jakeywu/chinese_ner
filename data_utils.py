@@ -30,8 +30,6 @@ class PrepareTagData(object):
             dataset_path = os.path.join(self.dataPath, "data/trainset.txt")
         elif self.mode == "test":
             dataset_path = os.path.join(self.dataPath, "data/testset.txt")
-        elif self.mode == "eval":
-            dataset_path = os.path.join(self.dataPath, "data/evalset.txt")
         else:
             raise Exception("mode must be in [train/test]")
 
