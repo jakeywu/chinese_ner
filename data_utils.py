@@ -64,6 +64,8 @@ class PrepareTagData(object):
                 cur = next(self._sourceData)
                 if self.__is_end_sentence(cur):
                     count += 1
+                    if not sentence:
+                        continue
                     sentence_lst.append(copy.deepcopy(sentence))
                     sentence = []
                 else:
@@ -100,7 +102,7 @@ class PrepareTagData(object):
                     continue
                 tag_id = self.tagId.get(line[1], -1)
                 if tag_id == -1:
-                    continue
+                    raise Exception("word not exists in tags")
                 _x.append(vocab_id)
                 _y.append(tag_id)
             dataset_x.append(_x)

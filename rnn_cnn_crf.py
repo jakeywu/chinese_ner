@@ -140,7 +140,6 @@ class RnnCnnCrf(BaseModel):
     def run_epoch(self, dataset, mode, keep_prob, epoch_num):
         feed_data = self.__get_feed_data(mode=mode)
         step = 0
-        # try:
         for input_x, input_y in dataset:
             step += (epoch_num + 1) * len(input_x)
             sess_params = self.sess.run(
