@@ -68,7 +68,7 @@ class RnnCnnCrf(BaseModel):
         self.targets = tf.placeholder(dtype=tf.int32, shape=[None, None], name="targets")
         self.keep_prob = tf.placeholder(dtype=tf.float32, shape=None, name="keep_prob")
         self.sequence_len = tf.reduce_sum(
-            tf.cast(tf.not_equal(tf.cast(-1, self.inputs.dtype), self.inputs), tf.int32), axis=1
+            tf.cast(tf.not_equal(tf.cast(0, self.inputs.dtype), self.inputs), tf.int32), axis=1
         )
 
     def _embedding_layers(self):
@@ -117,12 +117,15 @@ class RnnCnnCrf(BaseModel):
         for i in range(len(seq_len)):
             score = logits[i][0:seq_len[i]]
             viterbi, _ = tf.contrib.crf.viterbi_decode(score=score, transition_params=transition_params)
+            viterbi = [viter.tolist() for viter in viterbi]
             y_pred.extend(viterbi)
-            y_true.extend(labels[i][0:seq_len[i]])
-
-        accuracy = metrics.precision_score(y_true=y_true, y_pred=y_pred, average="macro")
-        recall = metrics.recall_score(y_true=y_true, y_pred=y_pred, average="macro")
-        f1 = metrics.f1_score(y_true=y_true, y_pred=y_pred, average="macro")
+            y_true.extend(labels[i][0:seq_len[i]].tolist())
+        index = sorted(set([i for i, v in enumerate(y_pred) if v != 0] + [i for i, v in enumerate(y_true) if v != 0]))
+        y_true_index = [y_true[i] for i in index]
+        y_pred_index = [y_pred[i] for i in index]
+        accuracy = metrics.precision_score(y_true=y_true_index, y_pred=y_pred_index, average="macro")
+        recall = metrics.recall_score(y_true=y_true_index, y_pred=y_pred_index, average="macro")
+        f1 = metrics.f1_score(y_true=y_true_index, y_pred=y_pred_index, average="macro")
 
         return accuracy, recall, f1
 
@@ -139,7 +142,6 @@ class RnnCnnCrf(BaseModel):
         step = 0
         # try:
         for input_x, input_y in dataset:
-            # input_x, input_y = next(dataset)
             step += (epoch_num + 1) * len(input_x)
             sess_params = self.sess.run(
                 fetches=feed_data,
@@ -147,9 +149,6 @@ class RnnCnnCrf(BaseModel):
             accuracy, recall, f1 = self.__viterbi_decode_metric(
                 logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
             print(self.template % (mode, epoch_num + 1, step, sess_params[0], accuracy, recall, f1))
-
-        # except StopIteration as e:
-        #     pass
 
     def train(self, trainset):
         self.sess.run(tf.global_variables_initializer())
