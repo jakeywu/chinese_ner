@@ -102,7 +102,7 @@ class PrepareTagData(object):
                     continue
                 tag_id = self.tagId.get(line[1], -1)
                 if tag_id == -1:
-                    raise Exception("word not exists in tags")
+                    continue
                 _x.append(vocab_id)
                 _y.append(tag_id)
             dataset_x.append(_x)
