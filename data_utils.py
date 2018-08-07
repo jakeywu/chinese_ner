@@ -63,9 +63,9 @@ class PrepareTagData(object):
             while count < self.config.batch_size:
                 cur = next(self._sourceData)
                 if self.__is_end_sentence(cur):
-                    count += 1
                     if not sentence:
                         continue
+                    count += 1
                     sentence_lst.append(copy.deepcopy(sentence))
                     sentence = []
                 else:
@@ -122,7 +122,9 @@ if __name__ == "__main__":
     while True:
         try:
             train_x, train_y = next(a)
-            print(train_x)
-            print(train_y)
+            print("===============")
+            print(len(train_x), train_y)
+            import pdb
+            pdb.set_trace()
         except Exception as e:
             exit()
