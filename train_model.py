@@ -1,5 +1,4 @@
 import tensorflow as tf
-from data_utils import PrepareTagData
 from rnn_cnn_crf import RnnCnnCrf
 
 tf.flags.DEFINE_integer(name="num_tag", default=4, help="number tags")
@@ -22,11 +21,9 @@ FLAG = tf.flags.FLAGS
 
 
 def main(_):
-    trainset = PrepareTagData(FLAG, "train")
-    testset = PrepareTagData(FLAG, "test")
     model = RnnCnnCrf(FLAG)
-    model.train(trainset)
-    model.test(testset)
+    model.train(FLAG)
+    model.test(FLAG)
 
 
 if __name__ == "__main__":

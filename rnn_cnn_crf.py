@@ -2,6 +2,7 @@ import warnings
 import os
 from sklearn import metrics
 import tensorflow as tf
+from data_utils import PrepareTagData
 warnings.filterwarnings('ignore')
 
 
@@ -149,15 +150,17 @@ class RnnCnnCrf(BaseModel):
                 logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
             print(self.template % (mode, epoch_num + 1, step, sess_params[0], accuracy, recall, f1))
 
-    def train(self, trainset):
+    def train(self, flag):
         self.sess.run(tf.global_variables_initializer())
         print("\nbegin train.....\n")
         for i in range(self.epoch):
+            trainset = PrepareTagData(flag, "train")
             self.run_epoch(dataset=trainset, mode="train", keep_prob=0.5, epoch_num=i)
         self.__saved_model()
 
-    def test(self, testset):
+    def test(self, flag):
         print("\n begin test.....\n")
+        testset = PrepareTagData(flag, "test")
         self.run_epoch(dataset=testset, mode="test", keep_prob=1., epoch_num=0)
 
     def _cnn_layers(self):
