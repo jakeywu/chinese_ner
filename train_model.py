@@ -13,7 +13,7 @@ tf.flags.DEFINE_integer(name="filter_size", default=3, help="cnn filter size")
 tf.flags.DEFINE_integer(name="filter_num", default=128, help="cnn filter num")
 
 tf.flags.DEFINE_string(name="dataset_flag", default="end", help="split dataset sentence by end")
-tf.flags.DEFINE_string(name="tag_char", default="O,B-PER,I-PER,E-PER,B-ORG,I-ORG,E-ORG", help="used in dataset, split by ,")
+tf.flags.DEFINE_string(name="tag_char", default="O,B-S-ORG,I-S-ORG,E-S-ORG", help="used in dataset, split by ,")
 
 tf.flags.DEFINE_string(name="saved_model", default="model", help="saved train model path, default ./model")
 
