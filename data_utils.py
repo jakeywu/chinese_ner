@@ -40,7 +40,7 @@ class PrepareTagData(object):
             while True:
                 a_line = fp.readline()
                 if a_line:
-                    yield a_line.strip()
+                    yield a_line.rstrip("\n")
                 else:
                     break
 
@@ -96,35 +96,20 @@ class PrepareTagData(object):
         for sentence in sentence_lst:
             _x, _y = [], []
             for line in sentence:
-                line = line.split(" ")
-                vocab_id = self.vocabDict.get(line[0], -1)
-                if vocab_id == -1:
-                    continue
-                tag_id = self.tagId.get(line[1], -1)
-                if tag_id == -1:
+                try:
+                    line = line.split(" ")
+                    if len(line) <= 1:
+                        continue
+                    vocab_id = self.vocabDict.get(line[0], -1)
+                    if vocab_id == -1:
+                        continue
+                    tag_id = self.tagId.get(line[-1], -1)
+                    if tag_id == -1:
+                        continue
+                except Exception as e:
                     continue
                 _x.append(vocab_id)
                 _y.append(tag_id)
             dataset_x.append(_x)
             dataset_y.append(_y)
         return dataset_x, dataset_y
-
-
-if __name__ == "__main__":
-    class CFG:
-        batch_size = 10
-        tag_char = "O,B-S-ORG,I-S-ORG,E-S-ORG"
-        dataset_flag = "end"
-
-
-    cfg = CFG()
-    a = PrepareTagData(cfg, "train")
-    while True:
-        try:
-            train_x, train_y = next(a)
-            print("===============")
-            print(len(train_x), train_y)
-            import pdb
-            pdb.set_trace()
-        except Exception as e:
-            exit()

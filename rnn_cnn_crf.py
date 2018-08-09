@@ -102,7 +102,6 @@ class RnnCnnCrf(BaseModel):
         log_likelihood, self.transition_params = tf.contrib.crf.crf_log_likelihood(
             inputs=self.logits, tag_indices=self.targets, sequence_lengths=self.sequence_len)
         self.loss = tf.reduce_mean(-log_likelihood)
-        self.global_step = tf.Variable(0, name="global_step", trainable=False)
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         self.train_op = optimizer.minimize(self.loss)
 
