@@ -4,6 +4,18 @@ import codecs
 import tensorflow as tf
 
 
+class DataUtils(object):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def tag_id(tag_char):
+        tag_dict = dict()
+        for i, v in enumerate(tag_char.split(",")):
+            tag_dict[v] = i
+        return tag_dict
+
+
 class PrepareTagData(object):
     def __init__(self, conf, mode="train"):
         """
@@ -15,7 +27,7 @@ class PrepareTagData(object):
         self.config = conf
         self.mode = mode
         self.vocabDict = self.__load_chinese_vocab()
-        self.tagId = self._tag_id()
+        self.tagId = DataUtils.tag_id(conf.tag_char)
         self._sourceData = self.__read_dataset()
 
     def __load_chinese_vocab(self):
@@ -43,12 +55,6 @@ class PrepareTagData(object):
                     yield a_line.rstrip("\n")
                 else:
                     break
-
-    def _tag_id(self):
-        tag_dict = dict()
-        for i, v in enumerate(self.config.tag_char.split(",")):
-            tag_dict[v] = i
-        return tag_dict
 
     def __is_end_sentence(self, cur):
         if cur.endswith(self.config.dataset_flag):

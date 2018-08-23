@@ -1,8 +1,7 @@
 import warnings
 import os
-from sklearn import metrics
 import tensorflow as tf
-from data_utils import PrepareTagData
+from data_utils import PrepareTagData, DataUtils
 warnings.filterwarnings('ignore')
 
 
@@ -11,11 +10,6 @@ class BaseModel(object):
 
     def __init__(self):
         self.sess = tf.Session()
-        self.template = self.__template()
-
-    @staticmethod
-    def __template():
-        return """<<%s>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t ACC: [%.3f] \t RECALL: [%.3f] \t F1: [%.3f]"""
 
     @staticmethod
     def __exists_checkpoint():
@@ -57,6 +51,7 @@ class RnnCnnCrf(BaseModel):
         self.filter_num = conf.filter_num
         self.learning_rate = conf.learning_rate
         self.saved_model = conf.saved_model
+        self.tag_to_id = DataUtils.tag_id(conf.tag_char)
 
         self._init_placeholder()
         self._embedding_layers()
@@ -110,6 +105,39 @@ class RnnCnnCrf(BaseModel):
             potentials=self.logits, transition_params=self.transition_params, sequence_length=self.sequence_len
         )
 
+    def __get_tags(self, path, tag):
+        begin_tag = self.tag_to_id.get("B-" + tag)
+        mid_tag = self.tag_to_id.get("I-" + tag)
+        end_tag = self.tag_to_id.get("E-" + tag)
+        begin = -1
+        tags = []
+        last_tag = 0
+        for index, tag in enumerate(path):
+            if tag == begin_tag and index == 0:
+                begin = 0
+            elif tag == begin_tag:
+                begin = index
+            elif tag == end_tag and last_tag in [mid_tag, begin_tag] and begin > -1:
+                end = index
+                tags.append("/".join([str(begin), str(end)]))
+            elif tag == 0:
+                begin = -1
+            last_tag = tag
+        return tags
+
+    def __calculate_metric(self, y_true, y_pred, tag_type="S-ORG"):
+        y_pred_tag = [self.__get_tags(item, tag_type) for item in y_pred]
+        y_true_tag = [self.__get_tags(item, tag_type) for item in y_true]
+        tp = fp = fn = 0
+        for tuple_tag in zip(y_true_tag, y_pred_tag):
+            tp += len(set(tuple_tag[0]).intersection(set(tuple_tag[1])))
+            fp += len(set(tuple_tag[0]).difference(set(tuple_tag[1])))
+            fn += len(set(tuple_tag[1]).difference(set(tuple_tag[0])))
+        recall = 0. if tp == fn == 0 else tp/(tp + fn)
+        precision = 0. if tp == fp == 0 else tp/(tp + fp)
+        f1 = 0 if recall + precision == 0 else 2 * recall * precision / (recall + precision)
+        return recall, precision, f1
+
     @staticmethod
     def __viterbi_decode_metric(logits, labels, seq_len, transition_params):
         y_pred = []
@@ -118,16 +146,9 @@ class RnnCnnCrf(BaseModel):
             score = logits[i][0:seq_len[i]]
             viterbi, _ = tf.contrib.crf.viterbi_decode(score=score, transition_params=transition_params)
             viterbi = [viter.tolist() for viter in viterbi]
-            y_pred.extend(viterbi)
-            y_true.extend(labels[i][0:seq_len[i]].tolist())
-        index = sorted(set([i for i, v in enumerate(y_pred) if v != 0] + [i for i, v in enumerate(y_true) if v != 0]))
-        y_true_index = [y_true[i] for i in index]
-        y_pred_index = [y_pred[i] for i in index]
-        accuracy = metrics.precision_score(y_true=y_true_index, y_pred=y_pred_index, average="macro")
-        recall = metrics.recall_score(y_true=y_true_index, y_pred=y_pred_index, average="macro")
-        f1 = metrics.f1_score(y_true=y_true_index, y_pred=y_pred_index, average="macro")
-
-        return accuracy, recall, f1
+            y_pred.append(viterbi)
+            y_true.append(labels[i][0:seq_len[i]].tolist())
+        return y_true, y_pred
 
     def __get_feed_data(self, mode):
         if mode == "train":
@@ -137,32 +158,43 @@ class RnnCnnCrf(BaseModel):
         else:
             raise Exception("mode {} is invalid".format(mode))
 
-    def run_epoch(self, dataset, mode, keep_prob, epoch_num):
-        feed_data = self.__get_feed_data(mode=mode)
-        step = 0
-        for input_x, input_y in dataset:
-            step += (epoch_num + 1) * len(input_x)
-            sess_params = self.sess.run(
-                fetches=feed_data,
-                feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: keep_prob})
-            accuracy, recall, f1 = self.__viterbi_decode_metric(
-                logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
-            print(self.template % (mode, epoch_num + 1, step, sess_params[0], accuracy, recall, f1))
-
     def train(self, flag):
         self.sess.run(tf.global_variables_initializer())
         print("\nbegin train.....\n")
+        step = 0
         for i in range(self.epoch):
             trainset = PrepareTagData(flag, "train")
-            self.run_epoch(dataset=trainset, mode="train", keep_prob=0.5, epoch_num=i)
+            feed_data = self.__get_feed_data(mode="train")
+            for input_x, input_y in trainset:
+                step += len(input_x)
+                sess_params = self.sess.run(
+                    fetches=feed_data,
+                    feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: 0.5})
+                y_true, y_pred = self.__viterbi_decode_metric(
+                    logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
+                accuracy, recall, f1 = self.__calculate_metric(y_true, y_pred, "S-ORG")
+                print("<<%s>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t  [acc: %.3f recall: %.3f f1: %.3f]" % (
+                    "test", i+1, step, sess_params[0], accuracy, recall, f1))
         self.__saved_model()
 
     def test(self, flag):
         print("\n begin test.....\n")
         testset = PrepareTagData(flag, "test")
-        self.run_epoch(dataset=testset, mode="test", keep_prob=1., epoch_num=0)
+        step = 0
+        feed_data = self.__get_feed_data(mode="test")
+        for input_x, input_y in testset:
+            step += len(input_x)
+            sess_params = self.sess.run(
+                fetches=feed_data,
+                feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: 0.5})
+            y_true, y_pred = self.__viterbi_decode_metric(
+                logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
+            accuracy, recall, f1 = self.__calculate_metric(y_true, y_pred, "S-ORG")
+            print("<<%s>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t  [acc: %.3f recall: %.3f f1: %.3f]" % ("test", 1, step,
+                                                                         sess_params[0], accuracy, recall, f1))
 
     def _cnn_layers(self):
+        # todo
         with tf.variable_scope(name_or_scope="cnn_layers"):
             self.embedded_inputs_expanded = tf.expand_dims(self.embedded_inputs, -1)
 
