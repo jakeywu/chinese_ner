@@ -162,27 +162,31 @@ class RnnCnnCrf(BaseModel):
         self.sess.run(tf.global_variables_initializer())
         print("\nbegin train.....\n")
         step = 0
+        _iter = 0
         for i in range(self.epoch):
             trainset = PrepareTagData(flag, "train")
             feed_data = self.__get_feed_data(mode="train")
             for input_x, input_y in trainset:
                 step += len(input_x)
+                _iter += 1
                 sess_params = self.sess.run(
                     fetches=feed_data,
                     feed_dict={self.inputs: input_x, self.targets: input_y, self.keep_prob: 0.5})
                 y_true, y_pred = self.__viterbi_decode_metric(
                     logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
                 accuracy, recall, f1 = self.__calculate_metric(y_true, y_pred, "S-ORG")
-                print("<<%s>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t  [acc: %.3f recall: %.3f f1: %.3f]" % (
-                    "test", i+1, step, sess_params[0], accuracy, recall, f1))
+                print("<<%s>> EPOCH: [%d] Iter: [%s] STEP: [%d] LOSS: [%.3f] \t  [acc: %.3f recall: %.3f f1: %.3f]" % (
+                    "Train", i+1, _iter, step, sess_params[0], accuracy, recall, f1))
         self.__saved_model()
 
     def test(self, flag):
         print("\n begin test.....\n")
         testset = PrepareTagData(flag, "test")
         step = 0
+        _iter = 0
         feed_data = self.__get_feed_data(mode="test")
         for input_x, input_y in testset:
+            _iter += 1
             step += len(input_x)
             sess_params = self.sess.run(
                 fetches=feed_data,
@@ -190,7 +194,7 @@ class RnnCnnCrf(BaseModel):
             y_true, y_pred = self.__viterbi_decode_metric(
                 logits=sess_params[2], labels=input_y, seq_len=sess_params[1], transition_params=sess_params[3])
             accuracy, recall, f1 = self.__calculate_metric(y_true, y_pred, "S-ORG")
-            print("<<%s>> EPOCH: [%d] STEP: [%d] LOSS: [%.3f] \t  [acc: %.3f recall: %.3f f1: %.3f]" % ("test", 1, step,
+            print("<<%s>> Iter:[%d] STEP: [%d] LOSS: [%.3f] \t  [acc: %.3f recall: %.3f f1: %.3f]" % ("Test", _iter, step,
                                                                          sess_params[0], accuracy, recall, f1))
 
     def _cnn_layers(self):
