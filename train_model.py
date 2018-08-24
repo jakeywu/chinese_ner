@@ -2,7 +2,7 @@ import tensorflow as tf
 from rnn_cnn_crf import RnnCnnCrf
 
 tf.flags.DEFINE_integer(name="num_tag", default=4, help="number tags")
-tf.flags.DEFINE_integer(name="epoch", default=5, help="maximum epochs")
+tf.flags.DEFINE_integer(name="epoch", default=2, help="maximum epochs")
 tf.flags.DEFINE_integer(name="batch_size", default=10, help="batch size")
 tf.flags.DEFINE_integer(name="vocab_size", default=5000, help="vocab num")
 tf.flags.DEFINE_integer(name="num_hidden", default=128, help="lstm num hidden")

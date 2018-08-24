@@ -130,13 +130,13 @@ class RnnCnnCrf(BaseModel):
         y_true_tag = [self.__get_tags(item, tag_type) for item in y_true]
         tp = fp = fn = 0
         for tuple_tag in zip(y_true_tag, y_pred_tag):
-            tp += len(set(tuple_tag[0]).intersection(set(tuple_tag[1])))
-            fp += len(set(tuple_tag[0]).difference(set(tuple_tag[1])))
-            fn += len(set(tuple_tag[1]).difference(set(tuple_tag[0])))
+            tp += len(set(tuple_tag[1]).intersection(set(tuple_tag[0])))
+            fp += len(set(tuple_tag[1]).difference(set(tuple_tag[0])))
+            fn += len(set(tuple_tag[0]).difference(set(tuple_tag[1])))
         recall = 0. if tp == fn == 0 else tp/(tp + fn)
         precision = 0. if tp == fp == 0 else tp/(tp + fp)
         f1 = 0 if recall + precision == 0 else 2 * recall * precision / (recall + precision)
-        return recall, precision, f1
+        return precision, recall, f1
 
     @staticmethod
     def __viterbi_decode_metric(logits, labels, seq_len, transition_params):
