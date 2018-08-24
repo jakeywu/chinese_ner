@@ -8,7 +8,7 @@ tensorflow==1.8.0
 
 ### 项目文件.
 1. data_utils.py 为数据预处理文件. 重写__next__方法直接遍历数据对象得到批次数据
-2. rnn_cnn_crf.py 为lstm_crf模型文件, 接下来会添加`cnn`特征提取, 已解决句子局部关系
+2. rnn_cnn_crf.py 为lstm_crf模型文件, 接下来会添加`cnn`特征提取, 以解决句子局部关系
 3. train_model.py 模型加载文件.
 4. predict.py 模型预测文件, 其中模型采用saved_model模块存储, 方便采用A/B测试时 server端稳定
 
