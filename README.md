@@ -13,7 +13,8 @@ tensorflow==1.8.0
 4. predict.py 模型预测文件, 其中模型采用saved_model模块存储, 方便采用A/B测试时 server端稳定
 
 ### 效果
- <<Train>> EPOCH: [2] Iter: [11244] STEP: [719573] LOSS: [0.982]       [acc: 0.903 recall: 0.845 f1: 0.873]
+```angular2html
+11248 <<Train>> EPOCH: [2] Iter: [11244] STEP: [719573] LOSS: [0.982]       [acc: 0.903 recall: 0.845 f1: 0.873]
 11249 <<Train>> EPOCH: [2] Iter: [11245] STEP: [719637] LOSS: [0.853]       [acc: 0.940 recall: 0.916 f1: 0.928]
 11250 <<Train>> EPOCH: [2] Iter: [11246] STEP: [719701] LOSS: [0.823]       [acc: 0.922 recall: 0.905 f1: 0.913]
 11251 <<Train>> EPOCH: [2] Iter: [11247] STEP: [719765] LOSS: [1.064]       [acc: 0.897 recall: 0.870 f1: 0.883]
@@ -30,6 +31,7 @@ tensorflow==1.8.0
 11262 <<Train>> EPOCH: [2] Iter: [11258] STEP: [720469] LOSS: [1.025]       [acc: 0.895 recall: 0.913 f1: 0.904]
 11263 <<Train>> EPOCH: [2] Iter: [11259] STEP: [720533] LOSS: [1.411]       [acc: 0.918 recall: 0.796 f1: 0.852]
 11264 <<Train>> EPOCH: [2] Iter: [11260] STEP: [720554] LOSS: [1.001]       [acc: 0.909 recall: 0.800 f1: 0.851]
+```
 
 ### 相关文档
 [Tensor saved_model模块](https://blog.csdn.net/thriving_fcl/article/details/75213361)
